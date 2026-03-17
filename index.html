@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Dhyana | Binaural Suite</title>
+<style>
+:root {
+  --bg-deep: #050507;
+  --bg-panel: rgba(18, 18, 22, 0.45);
+  --border-glass: rgba(255, 255, 255, 0.04);
+  --glow-primary: #5c00e6;
+  --glow-secondary: #8a2be2;
+  --text-main: #e0e0e0;
+  --text-muted: #888890;
+  --font-mono: 'SF Mono', ui-monospace, monospace;
+  --font-sans: 'Inter', system-ui, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+body {
+  background-color: var(--bg-deep);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  overflow: hidden;
+  width: 100vw;
+  height: 100vh;
+}
+#canvas-container {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 1;
+}
+#overlay {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: var(--bg-deep);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: opacity 1.5s ease;
+}
+#start-btn {
+  padding: 1rem 3rem;
+  background: transparent;
+  border: 1px solid var(--border-glass);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  box-shadow: 0 0 20px rgba(92, 0, 230, 0.1);
+  max-width: 90%;
+}
+#start-btn:hover {
+  background: rgba(92, 0, 230, 0.1);
+  box-shadow: 0 0 30px rgba(92, 0, 230, 0.3);
+  border-color: rgba(92, 0, 230, 0.5);
+}
+#ui-layer {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2rem;
+  pointer-events: none;
+  transition: opacity 1s ease;
+}
+#ui-layer.zen-mode { opacity: 0; pointer-events: none !important; }
+.panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  padding: 1.5rem;
+  pointer-events: auto;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+}
+.top-bar { display: flex; justify-content: space-between; align-items: flex-start; }
+.bottom-bar { display: flex; justify-content: center; align-items: flex-end; }
+.controls-group { display: flex; flex-direction: column; gap: 1.5rem; width: 300px; }
+.control-item { display: flex; flex-direction: column; gap: 0.5rem; }
+.control-header {
+  display: flex; justify-content: space-between;
+  font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.1em;
+}
+.val-display { color: var(--glow-primary); text-shadow: 0 0 10px rgba(92,0,230,0.5); }
+input[type=range] {
+  -webkit-appearance: none; width: 100%; background: transparent; height: 2px;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; height: 12px; width: 12px; border-radius: 50%;
+  background: var(--text-main); cursor: pointer;
+  box-shadow: 0 0 10px var(--glow-primary);
+}
+input[type=range]::-webkit-slider-runnable-track {
+  width: 100%; height: 2px; background: rgba(255,255,255,0.1);
+}
+.preset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; }
+.preset-btn {
+  background: rgba(255,255,255,0.02); border: 1px solid var(--border-glass);
+  color: var(--text-muted); padding: 0.75rem 0; font-family: var(--font-mono);
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em;
+  cursor: pointer; transition: all 0.3s ease; border-radius: 6px;
+}
+.preset-btn.active, .preset-btn:hover {
+  background: rgba(92,0,230,0.15); color: var(--text-main);
+  border-color: var(--glow-primary);
+}
+.action-btn {
+  background: transparent; border: 1px solid var(--border-glass);
+  color: var(--text-main); padding: 0.75rem 1.5rem; font-family: var(--font-mono);
+  font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em;
+  cursor: pointer; transition: all 0.3s ease; border-radius: 6px;
+  backdrop-filter: blur(10px);
+}
+.action-btn:hover { background: rgba(255,255,255,0.05); }
+#timer-display {
+  font-family: var(--font-mono); font-size: 3rem; font-weight: 300;
+  color: rgba(255,255,255,0.8); text-shadow: 0 0 20px rgba(92,0,230,0.3);
+  letter-spacing: 0.05em; pointer-events: none;
+}
+#breath-phase {
+  font-family: var(--font-mono); font-size: 0.8rem; color: var(--glow-primary);
+  text-transform: uppercase; letter-spacing: 0.2em; text-align: center;
+  margin-top: 0.5rem; opacity: 0.8;
+}
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="overlay"><button id="start-btn">Initiate Dhyana</button></div>
+<div id="canvas-container"><canvas id="mandala"></canvas></div>
+
+<div id="ui-layer">
+  <div class="top-bar">
+    <div class="panel controls-group">
+      <div class="control-item">
+        <div class="control-header">
+          <span>Carrier Freq</span><span class="val-display" id="val-carrier">200 Hz</span>
+        </div>
+        <input type="range" id="slider-carrier" min="100" max="400" step="1" value="200">
+      </div>
+      <div class="control-item">
+        <div class="control-header">
+          <span>Brainwave Target</span><span class="val-display" id="val-beat">6.0 Hz</span>
+        </div>
+        <input type="range" id="slider-beat" min="0.5" max="14" step="0.1" value="6.0">
+      </div>
+      <div class="preset-grid">
+        <button class="preset-btn" data-preset="dharana">Dharana</button>
+        <button class="preset-btn active" data-preset="zazen">Zazen</button>
+        <button class="preset-btn" data-preset="trataka">Trataka</button>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column; align-items: flex-end;">
+      <div id="timer-display">20:00</div>
+      <div id="breath-phase">Awaiting Cycle</div>
+    </div>
+  </div>
+  <div class="bottom-bar">
+    <button class="action-btn" id="zen-toggle">Enter Zen Mode</button>
+  </div>
+</div>
+
+<script>
+// 1. Global Error Catcher (Makes silent crashes visible)
+window.onerror = function(msg, url, lineNo, columnNo, error) {
+  const btn = document.getElementById('start-btn');
+  if (btn) {
+    btn.style.color = "#ff4444";
+    btn.style.borderColor = "#ff4444";
+    btn.style.boxShadow = "0 0 20px rgba(255, 68, 68, 0.3)";
+    btn.innerText = `ERR: ${msg} (Line ${lineNo})`;
+  }
+  return false;
+};
+
+// 2. Audio Engine (Removed # private fields)
+class BinauralEngine {
+  constructor() {
+    this._ctx = null;
+    this._isPlaying = false;
+    this._carrier = 200;
+    this._beat = 6.0;
+  }
+  
+  init() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    this._ctx = new AudioContext();
+    
+    this._masterGain = this._ctx.createGain();
+    this._masterGain.gain.value = 0;
+    this._masterGain.connect(this._ctx.destination);
+
+    this._panL = this._ctx.createStereoPanner();
+    this._panR = this._ctx.createStereoPanner();
+    this._panL.pan.value = -1;
+    this._panR.pan.value = 1;
+    
+    this._panL.connect(this._masterGain);
+    this._panR.connect(this._masterGain);
+
+    this._oscL = this._ctx.createOscillator();
+    this._oscR = this._ctx.createOscillator();
+    this._oscL.type = 'sine';
+    this._oscR.type = 'sine';
+    
+    this.updateFrequencies();
+    
+    this._oscL.connect(this._panL);
+    this._oscR.connect(this._panR);
+    this._oscL.start();
+    this._oscR.start();
+    this._isPlaying = true;
+    
+    this._masterGain.gain.setTargetAtTime(0.6, this._ctx.currentTime, 2);
+  }
+  
+  updateFrequencies() {
+    if(!this._ctx) return;
+    const fL = this._carrier - (this._beat / 2);
+    const fR = this._carrier + (this._beat / 2);
+    this._oscL.frequency.setTargetAtTime(fL, this._ctx.currentTime, 0.5);
+    this._oscR.frequency.setTargetAtTime(fR, this._ctx.currentTime, 0.5);
+  }
+  
+  setParameters(carrier, beat) {
+    this._carrier = carrier;
+    this._beat = beat;
+    this.updateFrequencies();
+  }
+  
+  stop() {
+    if(this._isPlaying) {
+      this._masterGain.gain.setTargetAtTime(0, this._ctx.currentTime, 1);
+      setTimeout(() => {
+        this._oscL.stop();
+        this._oscR.stop();
+        this._ctx.close();
+      }, 1500);
+      this._isPlaying = false;
+    }
+  }
+}
+
+// 3. Renderer (Replaced GSAP with pure math, removed # private fields)
+class MandalaRenderer {
+  constructor(canvasId) {
+    this._canvas = document.getElementById(canvasId);
+    this._ctx = this._canvas.getContext('2d', { alpha: false });
+    this._points = [];
+    this._complexity = 12;
+    this._phaseText = document.getElementById('breath-phase');
+    this._animState = { scale: 1, rotation: 0, glow: 0.1, morph: 0 };
+    this._breathSpeed = 0.0005;
+    
+    this.resize();
+    window.addEventListener('resize', () => this.resize());
+    this.initGeometry();
+    
+    this.render = this.render.bind(this);
+    requestAnimationFrame(this.render);
+  }
+  
+  resize() {
+    this._width = window.innerWidth;
+    this._height = window.innerHeight;
+    this._canvas.width = this._width * window.devicePixelRatio;
+    this._canvas.height = this._height * window.devicePixelRatio;
+    this._ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+  }
+  
+  initGeometry() {
+    this._points = [];
+    const layers = 8;
+    const pointsPerLayer = 360;
+    for(let l = 1; l <= layers; l++) {
+      for(let i = 0; i < pointsPerLayer; i++) {
+        const theta = (i / pointsPerLayer) * Math.PI * 2;
+        this._points.push({ layer: l, theta: theta, baseR: l * 40 });
+      }
+    }
+  }
+  
+  setComplexity(level, speedMult) {
+    this._complexity = level;
+    this._breathSpeed = 0.0005 * speedMult;
+  }
+  
+  render(time) {
+    this._ctx.fillStyle = '#050507';
+    this._ctx.fillRect(0, 0, this._width, this._height);
+    
+    // Pure Sine Wave Breathing Math (Zero Dependencies)
+    const cycle = Math.sin(time * this._breathSpeed);
+    const normalizedCycle = (cycle + 1) / 2; // Maps -1 to 1 into 0 to 1
+    
+    this._animState.scale = 1.0 + (0.8 * normalizedCycle);
+    this._animState.glow = 0.1 + (0.7 * normalizedCycle);
+    this._animState.morph = normalizedCycle;
+    this._animState.rotation += 0.05;
+    
+    // Update Text Logic based on sine curve direction
+    const cyclePhase = Math.cos(time * this._breathSpeed);
+    if (cyclePhase > 0.1) this._phaseText.innerText = "Inhale";
+    else if (cyclePhase < -0.1) this._phaseText.innerText = "Exhale";
+    else this._phaseText.innerText = "Hold";
+    
+    const cx = this._width / 2;
+    const cy = this._height / 2;
+    const t = time * 0.0005;
+
+    this._ctx.save();
+    this._ctx.translate(cx, cy);
+    this._ctx.rotate(this._animState.rotation * Math.PI / 180);
+
+    this._ctx.globalCompositeOperation = 'screen';
+    
+    for(let i = 0; i < this._points.length; i++) {
+      const p = this._points[i];
+      const petalEffect = Math.sin(p.theta * this._complexity + t) * (20 * this._animState.morph * p.layer);
+      const r = (p.baseR + petalEffect) * this._animState.scale;
+      const x = Math.cos(p.theta) * r;
+      const y = Math.sin(p.theta) * r;
+      
+      const alpha = 0.1 + (0.9 * (p.layer / 8)) * this._animState.glow;
+      this._ctx.fillStyle = `rgba(92, 0, 230, ${alpha})`;
+      this._ctx.beginPath();
+      this._ctx.arc(x, y, 1.5 + (p.layer * 0.2), 0, Math.PI * 2);
+      this._ctx.fill();
+    }
+    
+    this._ctx.restore();
+    requestAnimationFrame(this.render);
+  }
+}
+
+// 4. Controller
+class DhyanaController {
+  constructor() {
+    this.audio = new BinauralEngine();
+    this.visuals = new MandalaRenderer('mandala');
+    this.sessionTime = 1200;
+    this.timerInterval = null;
+    this.presets = {
+      dharana: { carrier: 150, beat: 12.0, comp: 8, speed: 1.5 },
+      zazen: { carrier: 200, beat: 6.0, comp: 12, speed: 1.0 },
+      trataka: { carrier: 250, beat: 8.5, comp: 24, speed: 0.8 }
+    };
+    this.bindUI();
+  }
+  
+  bindUI() {
+    document.getElementById('start-btn').addEventListener('click', () => {
+      document.getElementById('overlay').style.opacity = '0';
+      setTimeout(() => document.getElementById('overlay').classList.add('hidden'), 1500);
+      
+      if(!this.audio._ctx) {
+        this.audio.init();
+      }
+      
+      this.applyPreset('zazen');
+      this.startTimer();
+    });
+
+    const sCarrier = document.getElementById('slider-carrier');
+    const sBeat = document.getElementById('slider-beat');
+    const vCarrier = document.getElementById('val-carrier');
+    const vBeat = document.getElementById('val-beat');
+
+    sCarrier.addEventListener('input', (e) => {
+      vCarrier.innerText = `${e.target.value} Hz`;
+      this.audio.setParameters(parseFloat(e.target.value), parseFloat(sBeat.value));
+    });
+
+    sBeat.addEventListener('input', (e) => {
+      vBeat.innerText = `${parseFloat(e.target.value).toFixed(1)} Hz`;
+      this.audio.setParameters(parseFloat(sCarrier.value), parseFloat(e.target.value));
+    });
+
+    document.querySelectorAll('.preset-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+        this.applyPreset(e.target.dataset.preset);
+      });
+    });
+
+    document.getElementById('zen-toggle').addEventListener('click', () => {
+      document.getElementById('ui-layer').classList.toggle('zen-mode');
+    });
+    
+    document.addEventListener('keydown', (e) => {
+      if(e.key === 'Escape') document.getElementById('ui-layer').classList.remove('zen-mode');
+    });
+  }
+  
+  applyPreset(key) {
+    const p = this.presets[key];
+    document.getElementById('slider-carrier').value = p.carrier;
+    document.getElementById('val-carrier').innerText = `${p.carrier} Hz`;
+    document.getElementById('slider-beat').value = p.beat;
+    document.getElementById('val-beat').innerText = `${p.beat.toFixed(1)} Hz`;
+    
+    this.audio.setParameters(p.carrier, p.beat);
+    this.visuals.setComplexity(p.comp, p.speed);
+  }
+  
+  startTimer() {
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    const display = document.getElementById('timer-display');
+    this.timerInterval = setInterval(() => {
+      if(this.sessionTime <= 0) {
+        clearInterval(this.timerInterval);
+        this.audio.stop();
+        display.innerText = "00:00";
+        return;
+      }
+      this.sessionTime--;
+      const m = Math.floor(this.sessionTime / 60).toString().padStart(2, '0');
+      const s = (this.sessionTime % 60).toString().padStart(2, '0');
+      display.innerText = `${m}:${s}`;
+    }, 1000);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  window.app = new DhyanaController();
+});
+</script>
+</body>
+</html>
